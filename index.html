@@ -215,8 +215,8 @@
 <script>
 // ── Конфигурация ────────────────────────────────────────────────────────────
 
-const GEMINI_KEY   = "AIzaSyBK-NBI7XoomOcwj0kewa3RDf-7jTSG8QI";
-const GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + GEMINI_KEY;
+const OPENROUTER_KEY = "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";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbzEQlB-PQWT2ejPuUEC2PDluyEs4hWggcwHnbimTEHOzB7t7ALto0MsqdEaSTSKvZaWdQ/exec";
 
 const SYSTEM_PROMPT =
@@ -421,27 +421,32 @@ async function callGemini() {
   ).join("\n\n");
 
   const body = {
-    contents: [{
-      parts: [{
-        text: SYSTEM_PROMPT + "\n\nКласс: " + studentClass +
-              "\n\nВопросы и ответы учащегося:\n\n" + qa
-      }]
-    }]
+    model: "meta-llama/llama-3.1-8b-instruct:free",
+    messages: [
+      {
+        role: "user",
+        content: SYSTEM_PROMPT + "\n\nКласс: " + studentClass +
+                 "\n\nВопросы и ответы учащегося:\n\n" + qa
+      }
+    ]
   };
 
-  const resp = await fetch(GEMINI_URL, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify(body)
+  const resp = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + OPENROUTER_KEY
+    },
+    body: JSON.stringify(body)
   });
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error("Gemini " + resp.status + ": " + err);
+    throw new Error("OpenRouter " + resp.status + ": " + err);
   }
 
   const data = await resp.json();
-  return data.candidates[0].content.parts[0].text;
+  return data.choices[0].message.content;
 }
 
 // ── Google Таблица ───────────────────────────────────────────────────────────
