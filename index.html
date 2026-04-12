@@ -215,8 +215,8 @@
 <script>
 // ── Конфигурация ────────────────────────────────────────────────────────────
 
-const OPENROUTER_KEY = "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";
-const OPENROUTER_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_KEY     = "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";
+const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
 const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbwbaBPJQ5e-vLwkFO48XTioqMu9RGOxyFptRDEESOKXI3C8nGOIxQYDWrvt51RsT1Jp1Q/exec";
 
 const SYSTEM_PROMPT = `Ты — инструмент глубинной диагностики учебной мотивации подростка. Твоя задача — проанализировать ответы ученика на 14 открытых вопросов и составить подробный мотивационный профиль. Профиль предназначен для учителя: он должен быть написан живым языком, конкретно, без шаблонных фраз, и содержать выводы, которые учитель не смог бы сделать из обычного наблюдения в классе.
@@ -841,7 +841,7 @@ async function finish() {
   addTyping();
 
   try {
-    const profile = await callGemini();
+    const profile = await callGroq();
     removeTyping();
     addBubble("profile", profile.replace(/\n/g, "<br>"));
   } catch (err) {
@@ -856,36 +856,39 @@ async function finish() {
   counterEl.textContent = "";
 }
 
-// ── Gemini API ───────────────────────────────────────────────────────────────
+// ── Groq API ─────────────────────────────────────────────────────────────────
 
-async function callGemini() {
+async function callGroq() {
   const qa = answers.map((a, i) =>
     "Вопрос " + (i + 1) + ": " + a.q + "\nОтвет: " + a.a
   ).join("\n\n");
 
   const body = {
-   model: "llama-3.1-8b-instant",
+    model: "llama-3.3-70b-versatile",
     messages: [
+      { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: SYSTEM_PROMPT + "\n\nКласс: " + studentClass +
+        content: "Класс: " + studentClass +
                  "\n\nВопросы и ответы учащегося:\n\n" + qa
       }
-    ]
+    ],
+    max_tokens: 2048,
+    temperature: 0.7
   };
 
-  const resp = await fetch(OPENROUTER_URL, {
-    method: "POST",
+  const resp = await fetch(GROQ_URL, {
+    method:  "POST",
     headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + OPENROUTER_KEY
+      "Content-Type":  "application/json",
+      "Authorization": "Bearer " + GROQ_KEY
     },
     body: JSON.stringify(body)
   });
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error("OpenRouter " + resp.status + ": " + err);
+    throw new Error("Groq " + resp.status + ": " + err);
   }
 
   const data = await resp.json();
