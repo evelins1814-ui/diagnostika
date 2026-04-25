@@ -217,7 +217,7 @@
 
 const GROQ_KEY     = "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";
 const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
-const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbwbaBPJQ5e-vLwkFO48XTioqMu9RGOxyFptRDEESOKXI3C8nGOIxQYDWrvt51RsT1Jp1Q/exec";
+const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbwqoQ8-s6ZV0MtA5h-qH8B4TE2xOXEDf8f8k51w-WUUV7Dx3iQ_7nOivpxxGi3iqrqBRg/exec";
 
 const SYSTEM_PROMPT = `Ты — инструмент глубинной диагностики учебной мотивации подростка. Твоя задача — проанализировать ответы ученика на 14 открытых вопросов и составить подробный мотивационный профиль. Профиль предназначен для учителя: он должен быть написан живым языком, конкретно, без шаблонных фраз, и содержать выводы, которые учитель не смог бы сделать из обычного наблюдения в классе.
 
@@ -670,7 +670,25 @@ const SYSTEM_PROMPT = `Ты — инструмент глубинной диаг
 — Не оценивай ученика как «плохого» или «немотивированного» — только описывай, как он устроен и почему так получилось.
 — Пиши так, чтобы учитель захотел прочитать до конца — живо, конкретно, с уважением к ребёнку.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+РАЗДЕЛ 6. ОБЯЗАТЕЛЬНЫЙ ФИНАЛЬНЫЙ БЛОК (для машинной обработки)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+После всего профиля в самом конце ответа ОБЯЗАТЕЛЬНО добавь блок следующего вида (строго в этом формате, без изменений):
+
+===PARAMS_JSON===
+{
+  "p1": "краткий вывод по П1 (3–8 слов)",
+  "p2": "краткий вывод по П2 (3–8 слов)",
+  "p3": "краткий вывод по П3 (3–8 слов)",
+  "p4": "краткий вывод по П4 (3–8 слов)",
+  "p5": "краткий вывод по П5 (3–8 слов)",
+  "p6": "краткий вывод по П6 (3–8 слов)"
+}
+===END_PARAMS_JSON===
+
+Примеры значений: "достижение", "внешняя с интроекцией", "интернальный", "опосредованные (личная выгода)", "познавательный + одобрение", "дифференцированное".
+Если данных недостаточно — пиши "недостаточно данных". JSON должен быть валидным, без комментариев и без обратных кавычек.`;
 
 const QUESTIONS = [
   "Что в школе для тебя самое приятное — или хотя бы не раздражающее? Расскажи про конкретный момент.",
@@ -837,23 +855,52 @@ async function askQuestion() {
 }
 
 async function finish() {
-  await botSay("Спасибо за ответы! Сейчас я немного подумаю и составлю твой мотивационный профиль... ⏳");
+  await botSay("Спасибо за ответы! Сейчас я немного подумаю... ⏳");
   addTyping();
 
+  let rawProfile = "";
   try {
-    const profile = await callGroq();
+    rawProfile = await callGroq();
     removeTyping();
-    addBubble("profile", profile.replace(/\n/g, "<br>"));
   } catch (err) {
     removeTyping();
     addBubble("system", "Не удалось получить профиль от ИИ (" + err.message + "). Данные всё равно сохранены.");
     console.error(err);
   }
 
-  await sendToSheet(answers.map(a => a.a).join("\n\n"));
+  // 1) Отправляем в таблицу (полный профиль, разложенный по колонкам)
+  //    Возвращает очищенный от служебного JSON-блока текст — на случай отладки.
+  if (rawProfile) {
+    await sendToSheet(rawProfile);
+  } else {
+    // Если ИИ не ответил — всё равно сохраняем ответы, чтобы не потерять их
+    await sendToSheet("");
+  }
+
+  // 2) Показываем ученику ТОЛЬКО короткое мягкое резюме (без диагностических терминов)
+  await delay(300);
+  await botSay(buildStudentSummary(), "profile");
+
   await delay(400);
-  addBubble("system", "✅ Диагностика завершена. Спасибо!");
+  addBubble("system", "✅ Спасибо за разговор! Всё сохранено.");
   counterEl.textContent = "";
+}
+
+/**
+ * Короткое резюме для ученика (по требованиям ТЗ):
+ * — без диагностических терминов
+ * — без сравнений
+ * — без оценок «высокий/низкий»
+ * — от первого лица, тёплый тон
+ */
+function buildStudentSummary() {
+  const name = studentName ? studentName + ", спасибо" : "Спасибо";
+  return (
+    name + " за разговор! 🙂<br><br>" +
+    "Твои ответы помогут лучше понять, как сделать школу интереснее — для тебя и для других ребят. " +
+    "Здесь нет «правильного» или «неправильного» — каждый человек устроен по-своему, и это нормально.<br><br>" +
+    "Если захочешь ещё поговорить — я всегда здесь. Удачи! ✨"
+  );
 }
 
 // ── Groq API ─────────────────────────────────────────────────────────────────
@@ -897,28 +944,69 @@ async function callGroq() {
 
 // ── Google Таблица ───────────────────────────────────────────────────────────
 
-async function sendToSheet(allAnswers) {
-  const profile = document.querySelector(".bubble.profile");
-  const profileText = profile ? profile.innerText.replace("МОТИВАЦИОННЫЙ ПРОФИЛЬ\n", "") : "";
+/**
+ * Извлекает JSON-блок с 6 параметрами из ответа модели.
+ * Возвращает { params, profileClean } — параметры и текст профиля без служебного блока.
+ */
+function extractParams(rawProfile) {
+  const re = /===PARAMS_JSON===\s*([\s\S]*?)\s*===END_PARAMS_JSON===/;
+  const match = rawProfile.match(re);
+
+  let params = { p1: "", p2: "", p3: "", p4: "", p5: "", p6: "" };
+  let profileClean = rawProfile;
+
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      params = { ...params, ...parsed };
+    } catch (err) {
+      console.error("Не удалось распарсить PARAMS_JSON:", err);
+    }
+    // Убираем служебный блок из видимого профиля
+    profileClean = rawProfile.replace(re, "").trim();
+  }
+
+  return { params, profileClean };
+}
+
+async function sendToSheet(rawProfile) {
+  const { params, profileClean } = extractParams(rawProfile);
 
   const payload = {
-    date:    new Date().toLocaleString("ru-RU"),
-    class:   studentClass,
-    name:    studentName,
-    answers: allAnswers,
-    profile: profileText
+    date: new Date().toLocaleString("ru-RU"),
+    name: studentName,
+    class: studentClass,
+    answers: answers.map(a => a.a),  // массив, не строка
+    profile: profileClean,
+    params: params
   };
 
   try {
-    await fetch(SCRIPT_URL, {
+    // Используем text/plain — это обходит CORS preflight
+    // и при этом не нарушает работу Apps Script (он читает e.postData.contents).
+    const resp = await fetch(SCRIPT_URL, {
       method:  "POST",
-      mode:    "no-cors",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body:    JSON.stringify(payload)
     });
+
+    const text = await resp.text();
+    console.log("Ответ от Apps Script:", text);
+
+    try {
+      const data = JSON.parse(text);
+      if (!data.ok) {
+        console.error("Apps Script вернул ошибку:", data.error);
+      }
+    } catch (e) {
+      // не JSON — пишем в консоль как есть
+      console.warn("Ответ Apps Script не JSON:", text);
+    }
   } catch (err) {
     console.error("Ошибка отправки в таблицу:", err);
   }
+
+  return profileClean;
 }
 
 // ── Старт ────────────────────────────────────────────────────────────────────
