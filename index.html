@@ -832,7 +832,7 @@ async function handleSend() {
     studentClass = text;
     stage = "name";
     updateProgress();
-    await botSay("Хорошо! Как тебя зовут? (Можешь написать имя или псевдоним — это по желанию.)");
+    await botSay("Хорошо! Как тебя зовут?");
     setInputEnabled(true);
 
   } else if (stage === "name") {
