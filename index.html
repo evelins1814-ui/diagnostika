@@ -683,12 +683,23 @@ const SYSTEM_PROMPT = `Ты — инструмент глубинной диаг
   "p3": "краткий вывод по П3 (3–8 слов)",
   "p4": "краткий вывод по П4 (3–8 слов)",
   "p5": "краткий вывод по П5 (3–8 слов)",
-  "p6": "краткий вывод по П6 (3–8 слов)"
+  "p6": "краткий вывод по П6 (3–8 слов)",
+  "leading_motives": ["Достижение", "Причастность"],
+  "student_summary": {
+    "intro": "1–2 предложения о том, что движет учеником сильнее всего — описательно, на «ты», тёплым тоном, без диагностических терминов",
+    "meaning": "1–2 предложения о том, как это проявляется в учёбе — конкретно, без оценок",
+    "advice": "1–2 предложения с мягким советом, что попробовать — практично, поддерживающе"
+  }
 }
 ===END_PARAMS_JSON===
 
-Примеры значений: "достижение", "внешняя с интроекцией", "интернальный", "опосредованные (личная выгода)", "познавательный + одобрение", "дифференцированное".
-Если данных недостаточно — пиши "недостаточно данных". JSON должен быть валидным, без комментариев и без обратных кавычек.`;
+Правила для p1–p6: примеры значений — "достижение", "внешняя с интроекцией", "интернальный", "опосредованные (личная выгода)", "познавательный + одобрение", "дифференцированное". Если данных недостаточно — пиши "недостаточно данных".
+
+Правила для leading_motives: массив из 2–3 строк. Каждая строка — СТРОГО одно из четырёх значений: "Достижение", "Власть", "Причастность", "Безопасность". Порядок — от наиболее выраженного к менее. Не добавляй других слов.
+
+Правила для student_summary: все три текста — на «ты», тёплые, поддерживающие. ЗАПРЕЩЕНО использовать слова: "локус контроля", "интроекция", "экстернальный", "интернальный", "амотивация", "идентифицированный", "тип мотивации" и любые другие термины из психологических теорий. Пиши так, чтобы подросток воспринял текст как личный и понятный.
+
+Весь JSON должен быть валидным, без комментариев и без обратных кавычек.`;
 
 const QUESTIONS = [
   "Что в школе для тебя самое приятное — или хотя бы не раздражающее? Расскажи про конкретный момент.",
@@ -868,8 +879,9 @@ async function finish() {
     console.error(err);
   }
 
+  const { leadingMotives, studentSummary } = extractParams(rawProfile);
+
   // 1) Отправляем в таблицу (полный профиль, разложенный по колонкам)
-  //    Возвращает очищенный от служебного JSON-блока текст — на случай отладки.
   if (rawProfile) {
     await sendToSheet(rawProfile);
   } else {
@@ -877,24 +889,28 @@ async function finish() {
     await sendToSheet("");
   }
 
-  // 2) Показываем ученику ТОЛЬКО короткое мягкое резюме (без диагностических терминов)
+  // 2) Показываем ученику персонализированное резюме (без диагностических терминов)
   await delay(300);
-  await botSay(buildStudentSummary(), "profile");
+  await botSay(buildStudentSummary(studentSummary, leadingMotives), "profile");
 
   await delay(400);
   addBubble("system", "✅ Спасибо за разговор! Всё сохранено.");
   counterEl.textContent = "";
 }
 
-/**
- * Короткое резюме для ученика (по требованиям ТЗ):
- * — без диагностических терминов
- * — без сравнений
- * — без оценок «высокий/низкий»
- * — от первого лица, тёплый тон
- */
-function buildStudentSummary() {
+function buildStudentSummary(studentSummary, leadingMotives) {
   const name = studentName ? studentName + ", спасибо" : "Спасибо";
+
+  if (studentSummary && studentSummary.intro) {
+    return (
+      name + " за разговор! 🙂<br><br>" +
+      studentSummary.intro + "<br><br>" +
+      studentSummary.meaning + "<br><br>" +
+      "💡 Совет: " + studentSummary.advice + "<br><br>" +
+      "Здесь нет «правильного» или «неправильного» — каждый человек устроен по-своему."
+    );
+  }
+
   return (
     name + " за разговор! 🙂<br><br>" +
     "Твои ответы помогут лучше понять, как сделать школу интереснее — для тебя и для других ребят. " +
@@ -944,33 +960,36 @@ async function callGroq() {
 
 // ── Google Таблица ───────────────────────────────────────────────────────────
 
-/**
- * Извлекает JSON-блок с 6 параметрами из ответа модели.
- * Возвращает { params, profileClean } — параметры и текст профиля без служебного блока.
- */
 function extractParams(rawProfile) {
   const re = /===PARAMS_JSON===\s*([\s\S]*?)\s*===END_PARAMS_JSON===/;
   const match = rawProfile.match(re);
 
   let params = { p1: "", p2: "", p3: "", p4: "", p5: "", p6: "" };
   let profileClean = rawProfile;
+  let leadingMotives = [];
+  let studentSummary = null;
 
   if (match) {
     try {
       const parsed = JSON.parse(match[1]);
       params = { ...params, ...parsed };
+      if (Array.isArray(parsed.leading_motives)) {
+        leadingMotives = parsed.leading_motives;
+      }
+      if (parsed.student_summary && parsed.student_summary.intro) {
+        studentSummary = parsed.student_summary;
+      }
     } catch (err) {
       console.error("Не удалось распарсить PARAMS_JSON:", err);
     }
-    // Убираем служебный блок из видимого профиля
     profileClean = rawProfile.replace(re, "").trim();
   }
 
-  return { params, profileClean };
+  return { params, profileClean, leadingMotives, studentSummary };
 }
 
 async function sendToSheet(rawProfile) {
-  const { params, profileClean } = extractParams(rawProfile);
+  const { params, profileClean, leadingMotives } = extractParams(rawProfile);
 
   const payload = {
     date: new Date().toLocaleString("ru-RU"),
@@ -978,7 +997,8 @@ async function sendToSheet(rawProfile) {
     class: studentClass,
     answers: answers.map(a => a.a),  // массив, не строка
     profile: profileClean,
-    params: params
+    params: params,
+    leadingMotives: leadingMotives.join(", ")
   };
 
   try {
