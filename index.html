@@ -215,7 +215,7 @@
 <script>
 // ── Конфигурация ────────────────────────────────────────────────────────────
 
-const GROQ_KEY     = "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";
+const GROQ_KEY     = "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";
 const GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions";
 const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbzHheJgr2lSF6jmc-gsS3vIR_2ikp09BY8j0WH5bKDVqC-HP9bPA47OF7qa1DCgW349gg/exec";
 
@@ -812,9 +812,9 @@ async function botSay(text, type = "bot") {
 
 async function start() {
   setInputEnabled(false);
-  await botSay("Привет! Я помогу разобраться, что тебе интереснее в учёбе и что тебя мотивирует. Это не тест и не оценка — здесь нет правильных и неправильных ответов. Просто отвечай честно, как думаешь. 🙂");
+  await botSay("Привет! Я помогу разобраться, что тебе интереснее в учёбе и что тебя мотивирует. Это не тест и не оценка — здесь нет правильных и неправильных ответов. Просто отвечай честно, как думаешь. Я считаю, самое главное в жизни - быть собой, не пытаться соответствовать чьим-то ожиданиям и быть кем-то другим. Поэтому выдели 20 минут и прислушайся к себе, какой есть именно ты 🙂");
   await delay(300);
-  await botSay("Давай начнём с пары коротких вопросов. В каком ты классе?");
+  await botSay("Важно!! Не закрывай страницу, пока не получишь сообщение, что все сохранено, иначе придется проходить заново. В конце я напиши тебе пару своих мыслей о твоем мотивационном профиле. Давай начнём с коротких вопросов. В каком ты классе?");
   updateProgress();
   setInputEnabled(true);
 }
@@ -832,7 +832,7 @@ async function handleSend() {
     studentClass = text;
     stage = "name";
     updateProgress();
-    await botSay("Хорошо! Как тебя зовут?");
+    await botSay("Хорошо! Как тебя зовут? (Напиши Имя и Фамилию)");
     setInputEnabled(true);
 
   } else if (stage === "name") {
