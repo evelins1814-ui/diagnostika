@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Диагностика учебной мотивации</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    background: linear-gradient(135deg, #1a3a5c 0%, #2c5f8a 100%);
+    color: #fff;
+    padding: 18px 24px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.3px; }
+  header p  { font-size: 0.82rem; opacity: 0.8; margin-top: 4px; }
+
+  #progress-bar-wrap {
+    width: 100%;
+    background: #d0dce8;
+    height: 5px;
+  }
+  #progress-bar {
+    height: 5px;
+    background: #4caf8a;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  #chat-wrap {
+    width: 100%;
+    max-width: 680px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 12px 24px;
+    margin-top: 16px;
+  }
+
+  #messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .bubble {
+    max-width: 85%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+  .bubble.bot {
+    background: #fff;
+    color: #1a2a3a;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    align-self: flex-start;
+  }
+  .bubble.bot .label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #2c5f8a;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .bubble.user {
+    background: #2c5f8a;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+  }
+  .bubble.system {
+    background: #e8f4e8;
+    color: #2d6a4f;
+    border-radius: 12px;
+    align-self: center;
+    font-size: 0.88rem;
+    text-align: center;
+    max-width: 95%;
+    padding: 10px 16px;
+  }
+  .bubble.profile {
+    background: #fff;
+    color: #1a2a3a;
+    border-left: 4px solid #2c5f8a;
+    border-radius: 12px;
+    align-self: flex-start;
+    max-width: 95%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .bubble.profile .label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #2c5f8a;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  #input-area {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+    align-items: flex-end;
+  }
+  #user-input {
+    flex: 1;
+    border: 1.5px solid #c8d8e8;
+    border-radius: 22px;
+    padding: 11px 18px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    min-height: 46px;
+    max-height: 140px;
+    overflow-y: auto;
+    line-height: 1.45;
+    transition: border-color 0.2s;
+    background: #fff;
+  }
+  #user-input:focus { border-color: #2c5f8a; }
+
+  #send-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: none;
+    background: #2c5f8a;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.1s;
+  }
+  #send-btn:hover  { background: #1a3a5c; }
+  #send-btn:active { transform: scale(0.94); }
+  #send-btn:disabled { background: #b0c4d8; cursor: default; }
+  #send-btn svg { width: 20px; height: 20px; }
+
+  #counter {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #8a9ab0;
+    margin-top: 8px;
+  }
+
+  .typing {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    padding: 14px 16px;
+  }
+  .typing span {
+    width: 8px; height: 8px;
+    background: #aac;
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform: translateY(0); }
+    40%          { transform: translateY(-7px); }
+  }
+
+  @media (max-width: 500px) {
+    header h1 { font-size: 1rem; }
+    .bubble    { font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Диагностика учебной мотивации</h1>
+  <p>ГБОУ СОШ №471 · Индивидуальный подход в обучении</p>
+</header>
+<div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+
+<div id="chat-wrap">
+  <div id="messages"></div>
+  <div id="input-area">
+    <textarea id="user-input" placeholder="Напишите ответ..." rows="1"></textarea>
+    <button id="send-btn" title="Отправить">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+  <div id="counter"></div>
+</div>
+
+<script>
+// ── Конфигурация ────────────────────────────────────────────────────────────
+
+// Ключ Groq и системный промпт ПЕРЕНЕСЕНЫ В APPS SCRIPT (на сервер).
+// Браузер ребёнка больше НЕ обращается к Groq напрямую — поэтому теперь
+// работает с любой сети, а ключ скрыт от детей.
+const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbzHheJgr2lSF6jmc-gsS3vIR_2ikp09BY8j0WH5bKDVqC-HP9bPA47OF7qa1DCgW349gg/exec";
+
+// Системный промпт ИИ ПЕРЕНЕСЁН В APPS SCRIPT (Code.gs). Здесь он больше не нужен.
+
+const QUESTIONS = [
+  "Что в школе для тебя самое приятное — или хотя бы не раздражающее? Расскажи про конкретный момент.",
+  "Что ты чувствуешь в воскресенье вечером перед школой?",
+  "Расскажи про случай, когда ты получил плохую оценку или что-то пошло не так в школе. Что ты сделал после?",
+  "Как ты понимаешь, что хорошо выполнил задание? Приведи пример.",
+  "Когда у тебя что-то получается в школе — за счёт чего это, как думаешь? А когда не получается — это от чего зависит?",
+  "Когда учитель говорит «разбейтесь на группы для проекта» — что ты обычно думаешь в первую очередь? А что было бы идеально для тебя в такой ситуации?",
+  "Бывало такое, что ты сам начинал что-то изучать или делать — не потому что задали, а потому что стало интересно? Расскажи. Что тебя тогда зацепило?",
+  "Как ты сам себе объясняешь, зачем нужна школа? А ты бы ходил, если бы это не было обязательным? Почему?",
+  "Если бы ты проводил опрос «Почему ты учишься?» — какой ответ был бы самым частым? А если анонимно — изменилось бы?",
+  "Как ты хочешь, чтобы прошли каникулы?",
+  "Ученик говорит: «Школа — скучно, но я хожу». Что его удерживает, как думаешь? А у тебя так бывает?",
+  "Опиши идеального ученика с точки зрения школы. А теперь — самого обычного реального. В чём главная разница?",
+  "Есть что-то, чему тебя учат в школе, что реально пригодится в жизни? Что именно и почему? А есть что-то, что точно не пригодится?",
+  "Если бы ты мог добавить в расписание любой предмет — даже несуществующий — что бы это было? Почему?"
+];
+
+// ── Состояние ───────────────────────────────────────────────────────────────
+
+let stage      = "class";   // "class" → "name" → "questions" → "done"
+let studentClass = "";
+let studentName  = "";
+let qIndex     = 0;
+const answers  = [];
+
+// ── DOM ─────────────────────────────────────────────────────────────────────
+
+const messagesEl = document.getElementById("messages");
+const inputEl    = document.getElementById("user-input");
+const sendBtn    = document.getElementById("send-btn");
+const counterEl  = document.getElementById("counter");
+const progressEl = document.getElementById("progress-bar");
+
+// ── Утилиты ─────────────────────────────────────────────────────────────────
+
+function scrollBottom() {
+  setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 80);
+}
+
+function addBubble(type, html) {
+  const div = document.createElement("div");
+  div.className = "bubble " + type;
+  if (type === "bot") {
+    div.innerHTML = '<div class="label">Бот</div>' + html;
+  } else if (type === "profile") {
+    div.innerHTML = '<div class="label">Мотивационный профиль</div>' + html;
+  } else {
+    div.textContent = html;
+  }
+  messagesEl.appendChild(div);
+  scrollBottom();
+  return div;
+}
+
+function addTyping() {
+  const div = document.createElement("div");
+  div.className = "bubble bot";
+  div.id = "typing-bubble";
+  div.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  messagesEl.appendChild(div);
+  scrollBottom();
+}
+function removeTyping() {
+  const t = document.getElementById("typing-bubble");
+  if (t) t.remove();
+}
+
+function updateProgress() {
+  const total = QUESTIONS.length + 2; // +2: class + name
+  const done  = (stage === "class") ? 0
+              : (stage === "name")  ? 1
+              : (stage === "done")  ? total
+              : 2 + qIndex;
+  progressEl.style.width = Math.round((done / total) * 100) + "%";
+  if (stage === "questions") {
+    counterEl.textContent = "Вопрос " + qIndex + " из " + QUESTIONS.length;
+  } else {
+    counterEl.textContent = "";
+  }
+}
+
+function setInputEnabled(on) {
+  inputEl.disabled  = !on;
+  sendBtn.disabled  = !on;
+  if (on) inputEl.focus();
+}
+
+// ── Авторазмер textarea ──────────────────────────────────────────────────────
+
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+});
+inputEl.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+});
+sendBtn.addEventListener("click", handleSend);
+
+// ── Логика диалога ───────────────────────────────────────────────────────────
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function botSay(text, type = "bot") {
+  addTyping();
+  await delay(600 + Math.min(text.length * 12, 800));
+  removeTyping();
+  addBubble(type, text);
+}
+
+async function start() {
+  setInputEnabled(false);
+  await botSay("Привет! Я помогу разобраться, что тебе интереснее в учёбе и что тебя мотивирует. Это не тест и не оценка — здесь нет правильных и неправильных ответов. Просто отвечай честно, как думаешь. Я считаю, самое главное в жизни - быть собой, не пытаться соответствовать чьим-то ожиданиям и быть кем-то другим. Поэтому выдели 20 минут и прислушайся к себе, какой есть именно ты 🙂");
+  await delay(300);
+  await botSay("Важно!! Не закрывай страницу, пока не получишь сообщение, что все сохранено, иначе придется проходить заново. В конце я напиши тебе пару своих мыслей о твоем мотивационном профиле. Давай начнём с коротких вопросов. В каком ты классе?");
+  updateProgress();
+  setInputEnabled(true);
+}
+
+async function handleSend() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  setInputEnabled(false);
+  addBubble("user", text);
+
+  if (stage === "class") {
+    studentClass = text;
+    stage = "name";
+    updateProgress();
+    await botSay("Хорошо! Как тебя зовут? (Напиши Имя и Фамилию)");
+    setInputEnabled(true);
+
+  } else if (stage === "name") {
+    studentName = text;
+    stage = "questions";
+    updateProgress();
+    await botSay("Отлично, " + studentName + "! Теперь перейдём к основным вопросам. Отвечай развёрнуто — чем подробнее, тем лучше. Никуда не торопись.");
+    await delay(400);
+    await askQuestion();
+
+  } else if (stage === "questions") {
+    answers.push({ q: QUESTIONS[qIndex - 1], a: text });
+
+    if (qIndex < QUESTIONS.length) {
+      updateProgress();
+      await askQuestion();
+    } else {
+      stage = "done";
+      updateProgress();
+      await finish();
+    }
+  }
+}
+
+async function askQuestion() {
+  const q = QUESTIONS[qIndex];
+  qIndex++;
+  updateProgress();
+  await botSay(q);
+  setInputEnabled(true);
+}
+
+async function finish() {
+  await botSay("Спасибо за ответы! Сейчас я немного подумаю... ⏳");
+  addTyping();
+
+  // Теперь страница НЕ зовёт ИИ сама. Она отправляет ответы в Apps Script,
+  // а сервер уже сам обращается к ИИ, сохраняет в таблицу и возвращает
+  // готовое резюме для ученика. Поэтому работает с любой сети.
+  let result = null;
+  try {
+    result = await sendToSheet();
+    removeTyping();
+  } catch (err) {
+    removeTyping();
+    addBubble("system", "Не удалось связаться с сервером (" + err.message + "). Попробуй обновить страницу и пройти заново, либо сообщи учителю.");
+    console.error(err);
+  }
+
+  // Если сервер ответил, но ИИ внутри не сработал — ответы всё равно
+  // сохранены сервером, просто персональное резюме показать не получилось.
+  if (result && result.ok === false && result.error) {
+    console.error("Сервер сообщил об ошибке ИИ:", result.error);
+  }
+
+  const studentSummary = result ? result.studentSummary : null;
+  const leadingMotives = result && result.leadingMotives ? result.leadingMotives : [];
+
+  // Показываем ученику персонализированное резюме (без диагностических терминов)
+  await delay(300);
+  await botSay(buildStudentSummary(studentSummary, leadingMotives), "profile");
+
+  await delay(400);
+  addBubble("system", "✅ Спасибо за разговор! Всё сохранено.");
+  counterEl.textContent = "";
+}
+
+function buildStudentSummary(studentSummary, leadingMotives) {
+  const name = studentName ? studentName + ", спасибо" : "Спасибо";
+
+  if (studentSummary && studentSummary.intro) {
+    return (
+      name + " за разговор! 🙂<br><br>" +
+      studentSummary.intro + "<br><br>" +
+      studentSummary.meaning + "<br><br>" +
+      "💡 Совет: " + studentSummary.advice + "<br><br>" +
+      "Здесь нет «правильного» или «неправильного» — каждый человек устроен по-своему."
+    );
+  }
+
+  return (
+    name + " за разговор! 🙂<br><br>" +
+    "Твои ответы помогут лучше понять, как сделать школу интереснее — для тебя и для других ребят. " +
+    "Здесь нет «правильного» или «неправильного» — каждый человек устроен по-своему, и это нормально.<br><br>" +
+    "Если захочешь ещё поговорить — я всегда здесь. Удачи! ✨"
+  );
+}
+
+// ── Отправка на сервер (Apps Script сам зовёт ИИ и сохраняет в таблицу) ──────
+
+async function sendToSheet() {
+  const payload = {
+    date: new Date().toLocaleString("ru-RU"),
+    name: studentName,
+    class: studentClass,
+    answers: answers.map(a => a.a)   // массив только текстов ответов
+  };
+
+  // Используем text/plain — это обходит CORS preflight и при этом
+  // не мешает Apps Script (он читает e.postData.contents как текст).
+  const resp = await fetch(SCRIPT_URL, {
+    method:  "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body:    JSON.stringify(payload)
+  });
+
+  const text = await resp.text();
+  console.log("Ответ от Apps Script:", text);
+
+  let data = null;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.warn("Ответ Apps Script не JSON:", text);
+    throw new Error("сервер вернул неожиданный ответ");
+  }
+
+  return data;   // { ok, error, leadingMotives, studentSummary }
+}
+
+// ── Старт ────────────────────────────────────────────────────────────────────
+start();
+</script>
+</body>
+</html>
